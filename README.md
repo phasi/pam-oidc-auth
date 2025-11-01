@@ -1,6 +1,6 @@
 # pam-oidc-auth
 
-This is a Open ID Connect module for Linux PAM (Pluggable Authentication Modules). It allows you to configure a so-called "device login" flow for your linux machines that most cloud platforms use leveraging the [pam_exec.so](https://www.man7.org/linux/man-pages/man8/pam_exec.8.html).
+This is a Open ID Connect module for Linux PAM (Pluggable Authentication Modules). It allows you to configure a so-called "device login" flow for your linux machines that most cloud platforms use, leveraging the [pam_exec.so](https://www.man7.org/linux/man-pages/man8/pam_exec.8.html).
 
 ## Get started
 
@@ -21,6 +21,8 @@ curl -O <url will be here after first release>
 Please note that compiling requires an extra step (installing Golang). It is not covered by the installation instructions.
 
 ```bash
+git clone https://github.com/phasi/pam-oidc-auth.git
+cd pam-oidc-auth
 make package-linux
 cd dist/packages/
 ls
