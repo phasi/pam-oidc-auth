@@ -1,0 +1,53 @@
+{
+  "oidc_provider": {
+    "oidc_issuer_url": "https://<your-host>/realms/<your_realm>",
+    "oidc_client_id": "your-client-id",
+    "oidc_device_auth_url": "https://<your-host>/realms/<your_realm>/protocol/openid-connect/auth/device",
+    "oidc_token_url": "https://<your-host>/realms/<your_realm>/protocol/openid-connect/token",
+    "oidc_user_info_url": "https://<your-host>/realms/<your_realm>/protocol/openid-connect/userinfo"
+  },
+  "enable_sso": true,
+  "allowed_users": [],
+  "required_groups": [],
+  "sudo_group_name": "",
+  "create_local_users": true,
+  "log_file": "/var/log/pam-oidc.log",
+  "log_level": "info",
+  "lock_dir": "/tmp/pam-oidc-locks",
+  "sudoers_file": "/etc/sudoers.d/90-pam-oidc-auth",
+  "poll_interval": 5,
+  "timeout": 0,
+  "system_hooks": {
+    "add_user": {
+      "script_path": "/usr/sbin/useradd",
+      "arguments": [
+        "-m",
+        "-s",
+        "/bin/bash",
+        "{username}"
+      ]
+    },
+    "add_user_to_sudo_group": {
+      "script_path": "/usr/sbin/usermod",
+      "arguments": [
+        "-aG",
+        "sudo",
+        "{username}"
+      ]
+    },
+    "remove_user_from_sudo_group": {
+      "script_path": "/usr/sbin/usermod",
+      "arguments": [
+        "-G",
+        "sudo",
+        "{username}"
+      ]
+    },
+    "get_user_groups": {
+      "script_path": "/usr/sbin/groups",
+      "arguments": [
+        "{username}"
+      ]
+    }
+  }
+}
