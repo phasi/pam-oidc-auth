@@ -449,16 +449,16 @@ Specify all endpoints manually:
 
 ```bash
 # Use default config location
-./pam-oidc-auth
+./pam_oidc_auth
 
 # Specify config file
-./pam-oidc-auth -config /path/to/config.json
+./pam_oidc_auth -config /path/to/config.json
 
 # Test mode (interactive)
-./pam-oidc-auth test -config /path/to/config.json
+./pam_oidc_auth test -config /path/to/config.json
 
 # Show version
-./pam-oidc-auth version
+./pam_oidc_auth version
 ```
 
 ### Environment Variables
@@ -470,7 +470,7 @@ Specify all endpoints manually:
 Use test mode at your server to validate your configuration:
 
 ```bash
-./pam-oidc-auth test -config your-config.json
+./pam_oidc_auth test -config your-config.json
 ```
 
 This will prompt for a username and walk through the authentication flow without requiring PAM integration.
