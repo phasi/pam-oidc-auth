@@ -83,7 +83,7 @@ Note that if you temporarily disable authentication by setting `enable_sso` to f
 {
   "enable_sso": true,
   "allowed_users": ["user1@company.com", "user2@company.com"],
-  "required_groups": ["employees", "contractors"],
+  "required_groups_any": ["employees", "contractors"],
   "timeout": 300,
   "poll_interval": 5
 }
@@ -93,7 +93,8 @@ Note that if you temporarily disable authentication by setting `enable_sso` to f
 
 - **`enable_sso`** (boolean): Globally enable/disable the module
 - **`allowed_users`** (array): List of allowed usernames. Empty array allows all users
-- **`required_groups`** (array): List of required group memberships. Empty array requires no groups
+- **`required_groups_any`** (array): List of groups that are allowed to login (any will suffice), empty means this is not applied
+- **`required_groups_all`** (array): List of groups that are required (all of the groups in this array are required from the user), empty means this is not applied
 - **`timeout`** (integer): Authentication timeout in seconds (0 = no timeout, or use timeout from OIDC provider)
 - **`poll_interval`** (integer): Token polling interval in seconds
 
@@ -358,7 +359,7 @@ Specify all endpoints manually:
   "admin_group_name": "administrators",
   "sudo_group_name": "sudo",
   "sudoers_file": "/etc/sudoers.d/pam-oidc-users",
-  "required_groups": ["employees"],
+  "required_groups_any": ["employees"],
   "timeout": 300,
   "poll_interval": 5,
   "lock_dir": "/tmp/pam-oidc-locks",
@@ -414,7 +415,7 @@ Specify all endpoints manually:
   "create_local_users": true,
   "admin_group_name": "<id>",
   "sudo_group_name": "sudo",
-  "required_groups": [],
+  "required_groups_any": [],
   "timeout": 300,
   "poll_interval": 5,
   "log_level": "info"
