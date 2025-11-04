@@ -1,34 +1,38 @@
 {
   "oidc_provider": {
-    "oidc_issuer_url": "https://your-keycloak.com/realms/your-realm",
     "oidc_client_id": "your-client-id",
+    "oidc_issuer_url": "https://your-keycloak.com/realms/your-realm",
     "oidc_device_auth_url": "https://your-keycloak.com/realms/your-realm/protocol/openid-connect/auth/device",
     "oidc_token_url": "https://your-keycloak.com/realms/your-realm/protocol/openid-connect/token",
     "oidc_user_info_url": "https://your-keycloak.com/realms/your-realm/protocol/openid-connect/userinfo",
-    "use_discovery": true,
+    "jwks_uri": "https://example.com/.well-known/jwks.json",
     "claim_map": {
       "username": {
         "claim_name": "preferred_username",
-        "token_source": "id_token"
+        "token_source": "auto"
       },
       "groups": {
         "claim_name": "groups",
-        "token_source": "id_token"
+        "token_source": "auto"
       },
       "email": {
         "claim_name": "email",
-        "token_source": "id_token"
+        "token_source": "auto"
       },
       "subject": {
         "claim_name": "sub",
-        "token_source": "id_token"
+        "token_source": "auto"
       },
       "fallback_to_userinfo": false
-    }
+    },
+    "use_discovery": false,
+    "auto_discovery_url": ""
   },
   "enable_sso": true,
   "allowed_users": [],
-  "required_groups": [],
+  "required_groups_any": [],
+  "required_groups_all": [],
+  "admin_group_name": "",
   "sudo_group_name": "",
   "create_local_users": true,
   "log_file": "/var/log/pam-oidc.log",
@@ -47,6 +51,10 @@
         "{username}"
       ]
     },
+    "post_user_creation": {
+      "script_path": "",
+      "arguments": null
+    },
     "add_user_to_sudo_group": {
       "script_path": "/usr/sbin/usermod",
       "arguments": [
@@ -64,7 +72,7 @@
       ]
     },
     "get_user_groups": {
-      "script_path": "/usr/sbin/groups",
+      "script_path": "/usr/bin/groups",
       "arguments": [
         "{username}"
       ]
