@@ -10,8 +10,6 @@ To get started you need to either download the distribution package or compile t
 
 #### Option 1: Download from github
 
-This option will be available after the first release.
-
 ```bash
 wget https://github.com/phasi/pam-oidc-auth/releases/download/v1.0.0/pam_oidc_auth-linux-amd64-v1.0.0.tar.gz
 ```
