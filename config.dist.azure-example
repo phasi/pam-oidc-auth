@@ -1,12 +1,11 @@
 {
   "oidc_provider": {
-    "oidc_issuer_url": "https://login.microsoftonline.com/<your-tenant-id>/v2.0",
     "oidc_client_id": "your-client-id",
+    "oidc_issuer_url": "https://login.microsoftonline.com/<your-tenant-id>/v2.0",
     "oidc_device_auth_url": "https://login.microsoftonline.com/<your-tenant-id>/oauth2/v2.0/devicecode",
     "oidc_token_url": "https://login.microsoftonline.com/<your-tenant-id>/oauth2/v2.0/token",
     "oidc_user_info_url": "https://graph.microsoft.com/oidc/userinfo",
     "jwks_uri": "https://login.microsoftonline.com/<your-tenant-id>/discovery/v2.0/keys",
-    "use_discovery": false,
     "claim_map": {
       "username": {
         "claim_name": "preferred_username",
@@ -25,11 +24,15 @@
         "token_source": "access_token"
       },
       "fallback_to_userinfo": true
-    }
+    },
+    "use_discovery": false,
+    "auto_discovery_url": ""
   },
   "enable_sso": true,
   "allowed_users": [],
-  "required_groups": [],
+  "required_groups_any": [],
+  "required_groups_all": [],
+  "admin_group_name": "",
   "sudo_group_name": "",
   "create_local_users": true,
   "log_file": "/var/log/pam-oidc.log",
@@ -48,6 +51,10 @@
         "{username}"
       ]
     },
+    "post_user_creation": {
+      "script_path": "",
+      "arguments": null
+    },
     "add_user_to_sudo_group": {
       "script_path": "/usr/sbin/usermod",
       "arguments": [
@@ -65,7 +72,7 @@
       ]
     },
     "get_user_groups": {
-      "script_path": "/usr/sbin/groups",
+      "script_path": "/usr/bin/groups",
       "arguments": [
         "{username}"
       ]
