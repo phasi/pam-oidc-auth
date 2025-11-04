@@ -13,7 +13,7 @@ To get started you need to either download the distribution package or compile t
 This option will be available after the first release.
 
 ```bash
-curl -O <url will be here after first release>
+wget https://github.com/phasi/pam-oidc-auth/releases/download/v1.0.0/pam_oidc_auth-linux-amd64-v1.0.0.tar.gz
 ```
 
 #### Option 2: Compile it by yourself
