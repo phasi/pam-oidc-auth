@@ -12,7 +12,7 @@ GOARCH ?= $(shell go env GOARCH)
 
 GIT_TAG ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-VERSION := $(GIT_TAG)-$(GIT_COMMIT)
+VERSION := $(GIT_TAG)
 
 # Build flags (embed version to builds)
 LDFLAGS := -X main.Version=$(VERSION)
