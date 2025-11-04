@@ -15,14 +15,14 @@ if [ -f /etc/os-release ]; then
     . /etc/os-release
     if [ "$ID" != "ubuntu" ] || [ "$VERSION_ID" != "24.04" ]; then
         echo "❌ This install script is only tested on Ubuntu 24.04"
-        read -p "🔧 Do you want to proceed anyway? (y|n) " proceed
+        read -p "🔧 Do you want to proceed anyway? (not recommended) (y|N) " proceed
         if [ "$proceed" != "y" ]; then
             exit 0
         fi
     fi
 else
     echo "❌ Cannot determine OS. This install script is only tested on Ubuntu 24.04"
-        read -p "🔧 Do you want to proceed anyway? (y|n) " proceed
+        read -p "🔧 Do you want to proceed anyway? (not recommended) (y|N) " proceed
         if [ "$proceed" != "y" ]; then
             exit 0
         fi

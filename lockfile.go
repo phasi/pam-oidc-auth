@@ -10,6 +10,19 @@ import (
 	"time"
 )
 
+// Auth Lock File Content
+type AuthLock struct {
+	User                    string `json:"user"`
+	PID                     int    `json:"pid"`
+	StartedAt               string `json:"started_at"`
+	ExpiresAt               string `json:"expires_at"`
+	DeviceCode              string `json:"device_code"`
+	UserCode                string `json:"user_code"`
+	VerificationURI         string `json:"verification_uri"`
+	VerificationURIComplete string `json:"verification_uri_complete"`
+	PollingID               string `json:"polling_id"`
+}
+
 // generateID creates a simple random ID for polling identification
 func generateID() string {
 	bytes := make([]byte, 16)
@@ -175,32 +188,9 @@ func checkPollingID(expectedID string) error {
 	return nil
 }
 
-// removeAuthLock removes the authentication lock file
-func removeAuthLock() error {
-	if config.LockDir == "" {
-		return nil // Nothing to remove
-	}
-
-	lockFile := getLockFilePath()
-
-	// Only remove if it's our lock
-	if authLock, err := loadExistingLock(lockFile); err == nil {
-		if authLock.PID == os.Getpid() {
-			if err := os.Remove(lockFile); err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("failed to remove lock file: %v", err)
-			}
-			logDebug("Removed auth lock file for user %s", pamEnv.User)
-		} else {
-			logDebug("Lock file belongs to different process (PID: %d), not removing", authLock.PID)
-		}
-	}
-
-	return nil
-}
-
-// forceRemoveAuthLock removes the authentication lock file regardless of PID
+// removeAuthLock removes the authentication lock file regardless of PID
 // Used when authentication succeeds or for cleanup after legitimate failures
-func forceRemoveAuthLock() error {
+func removeAuthLock() error {
 	if config.LockDir == "" {
 		return nil // Nothing to remove
 	}
@@ -211,7 +201,7 @@ func forceRemoveAuthLock() error {
 		return fmt.Errorf("failed to remove lock file: %v", err)
 	}
 
-	logDebug("Force removed auth lock file for user %s", pamEnv.User)
+	logDebug("Removed auth lock file for user %s", pamEnv.User)
 	return nil
 }
 

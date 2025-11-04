@@ -1,15 +1,16 @@
 {
   "oidc_provider": {
-    "oidc_issuer_url": "https://your-keycloak.com/realms/your-realm",
+    "oidc_issuer_url": "https://login.microsoftonline.com/<your-tenant-id>/v2.0",
     "oidc_client_id": "your-client-id",
-    "oidc_device_auth_url": "https://your-keycloak.com/realms/your-realm/protocol/openid-connect/auth/device",
-    "oidc_token_url": "https://your-keycloak.com/realms/your-realm/protocol/openid-connect/token",
-    "oidc_user_info_url": "https://your-keycloak.com/realms/your-realm/protocol/openid-connect/userinfo",
-    "use_discovery": true,
+    "oidc_device_auth_url": "https://login.microsoftonline.com/<your-tenant-id>/oauth2/v2.0/devicecode",
+    "oidc_token_url": "https://login.microsoftonline.com/<your-tenant-id>/oauth2/v2.0/token",
+    "oidc_user_info_url": "https://graph.microsoft.com/oidc/userinfo",
+    "jwks_uri": "https://login.microsoftonline.com/<your-tenant-id>/discovery/v2.0/keys",
+    "use_discovery": false,
     "claim_map": {
       "username": {
         "claim_name": "preferred_username",
-        "token_source": "id_token"
+        "token_source": "access_token"
       },
       "groups": {
         "claim_name": "groups",
@@ -17,13 +18,13 @@
       },
       "email": {
         "claim_name": "email",
-        "token_source": "id_token"
+        "token_source": "access_token"
       },
       "subject": {
         "claim_name": "sub",
-        "token_source": "id_token"
+        "token_source": "access_token"
       },
-      "fallback_to_userinfo": false
+      "fallback_to_userinfo": true
     }
   },
   "enable_sso": true,

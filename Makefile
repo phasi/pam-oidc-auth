@@ -49,7 +49,7 @@ package-linux: build-linux
 			cp $$binary $(BUILD_DIR)/packages/$$package_name/; \
 			cp install.sh $(BUILD_DIR)/packages/$$package_name/; \
 			cp INSTALLATION.md $(BUILD_DIR)/packages/$$package_name/; \
-			cp config.json.dist* $(BUILD_DIR)/packages/$$package_name/; \
+			cp config.dist* $(BUILD_DIR)/packages/$$package_name/; \
 			cp ssh_banner.txt $(BUILD_DIR)/packages/$$package_name/; \
 			cp -r pam.d $(BUILD_DIR)/packages/$$package_name/; \
 			cd $(BUILD_DIR)/packages && tar -czf $$package_name.tar.gz $$package_name && cd -;  \

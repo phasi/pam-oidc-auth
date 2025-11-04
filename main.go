@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -36,6 +35,7 @@ var (
 	logFile               *os.File
 	httpClient            *http.Client
 	testMode              bool = false
+	showVersion           bool = false
 )
 
 func init() {
@@ -47,28 +47,54 @@ func init() {
 func createDefaultConfig(path string) error {
 
 	defaultConfig := Config{
-		OIDCProvider: OIDCProvider{
+		OIDCProvider: Provider{
 			OIDCIssuerURL:     "https://example.com",
-			OIDCClientID:      "your-client-id",
+			ClientID:          "your-client-id",
 			OIDCDeviceAuthURL: "https://example.com/device_authorization",
 			OIDCTokenURL:      "https://example.com/token",
 			OIDCUserInfoURL:   "https://example.com/userinfo",
+			ClaimMap: ClaimMap{
+				Username: ClaimSource{
+					ClaimName:   "preferred_username",
+					TokenSource: TokenSourceAuto,
+				},
+				Groups: ClaimSource{
+					ClaimName:   "groups",
+					TokenSource: TokenSourceAuto,
+				},
+				Email: ClaimSource{
+					ClaimName:   "email",
+					TokenSource: TokenSourceAuto,
+				},
+				Subject: ClaimSource{
+					ClaimName:   "sub",
+					TokenSource: TokenSourceAuto,
+				},
+				FallbackToUserInfo: false,
+			},
+			// UseDiscovery: false,
+			JWKSUri: "https://example.com/.well-known/jwks.json",
 		},
-		EnableSSO:        true,
-		AllowedUsers:     []string{},
-		RequiredGroups:   []string{},
-		CreateLocalUsers: true,
-		LogFile:          "/var/log/pam-oidc.log",
-		LogLevel:         "info",
-		LockDir:          "/tmp/pam-oidc-locks",
-		SudoersFile:      "/etc/sudoers.d/90-pam-oidc-auth",
-		PollInterval:     5,
-		Timeout:          0,
+		EnableSSO:         true,
+		AllowedUsers:      []string{},
+		RequiredGroupsAny: []string{},
+		RequiredGroupsAll: []string{},
+		CreateLocalUsers:  true,
+		LogFile:           "/var/log/pam-oidc.log",
+		LogLevel:          "info",
+		LockDir:           "/tmp/pam-oidc-locks",
+		SudoersFile:       "/etc/sudoers.d/90-pam-oidc-auth",
+		PollInterval:      5,
+		Timeout:           0,
 		SystemHooks: SystemHooks{
 			AddUser: Hook{
 				ScriptPath: "/usr/sbin/useradd",
 				Arguments:  []string{"-m", "-s", "/bin/bash", "{username}"},
 			},
+			// PostUserCreation: Hook{
+			//     ScriptPath: "/usr/local/bin/post-user-setup.sh",
+			//     Arguments:  []string{"{username}"},
+			// },
 			AddUserToSudoGroup: Hook{
 				ScriptPath: "/usr/sbin/usermod",
 				Arguments:  []string{"-aG", "sudo", "{username}"},
@@ -111,6 +137,11 @@ func handleCreateConfig() {
 }
 
 func testModePromptAndSetPAMEnv() {
+
+	createConfigFlags := flag.NewFlagSet(os.Args[1], flag.ExitOnError)
+	createConfigFlags.StringVar(&configFilePath, "config", defaultConfigFilePath, "Path to configuration file")
+	createConfigFlags.Parse(os.Args[2:])
+
 	fmt.Print("Enter PAM_USER: ")
 	var user string
 	fmt.Scanln(&user)
@@ -121,7 +152,7 @@ func main() {
 	flag.Usage = func() {
 		fmt.Printf("Usage: %s [options]\n", os.Args[0])
 		flag.PrintDefaults()
-		fmt.Printf("\nSubcommands: \n\tcreate-config\n\ttest\n")
+		fmt.Printf("\nSubcommands: \n\tcreate-config\n\ttest\n\tversion\n")
 	}
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
@@ -134,19 +165,14 @@ func main() {
 		case "version":
 			fmt.Println(Version)
 			return
-		case "help":
-			flag.Usage()
-			return
 		default:
-			flag.Usage()
-			os.Exit(1)
+			flag.StringVar(&configFilePath, "config", defaultConfigFilePath, "Path to configuration file")
+			flag.BoolVar(&showVersion, "version", false, "Show version and exit")
+			flag.Parse()
 		}
 	}
-	flag.StringVar(&configFilePath, "config", defaultConfigFilePath, "Path to configuration file")
-	showVersion := flag.Bool("version", false, "Show version and exit")
-	flag.Parse()
 
-	if *showVersion {
+	if showVersion {
 		fmt.Println(Version)
 		os.Exit(0)
 	}
@@ -206,9 +232,10 @@ func main() {
 	// Perform device flow authentication
 	if err := authenticateDeviceFlow(); err != nil {
 		logError("Authentication failed: %v", err)
+		removeAuthLock()
 		os.Exit(1)
 	}
-
+	removeAuthLock()
 	logInfo("Authentication successful for user: %s", pamEnv.User)
 	fmt.Fprintln(os.Stderr, "Authentication successful!")
 	os.Exit(0)
@@ -245,11 +272,13 @@ func initLogging() {
 	default:
 		logLevel = LogLevelInfo
 	}
-	// Open log file
-	var err error
-	logFile, err = os.OpenFile(config.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatalf("Failed to open log file: %v", err)
+	// Open log file if not in test mode
+	if !testMode {
+		var err error
+		logFile, err = os.OpenFile(config.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Fatalf("Failed to open log file: %v", err)
+		}
 	}
 }
 
@@ -285,14 +314,15 @@ func logMessage(level int, format string, args ...interface{}) {
 		timestamp := time.Now().Format("2006-01-02 15:04:05")
 		message := fmt.Sprintf(format, args...)
 		logLine := fmt.Sprintf("%s [PAM_OIDC:%s] %s\n", timestamp, levelStr, message)
+		// if test mode is on print only to console
+		if testMode {
+			fmt.Print(logLine)
+			return
+		}
 
 		logFile.WriteString(logLine)
 		logFile.Sync()
 
-		// if test mode is on print to stdout as well
-		if testMode {
-			fmt.Print(logLine)
-		}
 	}
 }
 
@@ -310,49 +340,49 @@ func errorExit(message string) {
 func authenticateDeviceFlow() error {
 	logDebug("Starting device flow authentication")
 
-	// Step 1: Check for existing valid auth session first
+	// Initialize OIDC provider (discovery + endpoints) before authentication
+	if err := initializeOIDCProvider(); err != nil {
+		return fmt.Errorf("failed to initialize OIDC provider: %v", err)
+	}
+
+	// Check for existing valid auth session first
 	authLock, isExisting, err := checkOrCreateAuthLock()
 	if err != nil {
 		return fmt.Errorf("failed to check/create auth lock: %v", err)
 	}
 
-	// Step 2: Display authentication instructions (using auth lock data)
+	// Display authentication instructions (using auth lock data)
 	displayAuthInstructionsFromLock(authLock, isExisting)
 
-	// Step 3: Start new polling session (update ID to supersede any old polling)
+	// Start new polling session (update ID to supersede any old polling)
 	if err := updatePollingID(authLock); err != nil {
 		return fmt.Errorf("failed to start polling session: %v", err)
 	}
 
-	// Step 4: Poll for token (using device code from lock)
-	accessToken, err := pollForTokenFromLock(config.OIDCProvider.OIDCTokenURL, authLock)
+	// Poll for token (using device code from lock)
+	tokenResponse, err := pollForTokenResponseFromLock(config.OIDCProvider.OIDCTokenURL, authLock)
 	if err != nil {
-		// Only remove lock file for certain types of errors, not ID mismatch
-		if !strings.Contains(err.Error(), "ID mismatch") {
-			removeAuthLock()
-		}
 		return fmt.Errorf("token polling failed: %v", err)
 	}
 
-	// Step 5: Validate token and get user info
+	// Validate token and get user info
 	logDebug("Validating token and retrieving user info")
-	userInfo, err := getUserInfo(config.OIDCProvider.OIDCUserInfoURL, accessToken)
+	// Validate JWT and extract claims using OAuth2-based flexible mapping
+	extractedClaims, err := ValidateAndExtractClaimsWithOAuth2(tokenResponse)
 	if err != nil {
-		return fmt.Errorf("user info retrieval failed: %v", err)
+		return fmt.Errorf("token validation failed: %v", err)
 	}
 
 	// Verify username matches
-	if userInfo.PreferredUsername != pamEnv.User {
+	if extractedClaims.PreferredUsername != pamEnv.User {
 		logError("Username mismatch - requested: %s, authenticated: %s",
-			pamEnv.User, userInfo.PreferredUsername)
+			pamEnv.User, extractedClaims.PreferredUsername)
 		fmt.Fprintln(os.Stderr, "Authentication failed - username mismatch")
-		forceRemoveAuthLock() // Force remove on authentication failure
 		return fmt.Errorf("username mismatch")
 	}
 
 	// Check group membership if required
-	if err := checkGroupMembership(userInfo); err != nil {
-		forceRemoveAuthLock() // Force remove on authentication failure
+	if err := checkGroupMembershipFromClaims(extractedClaims); err != nil {
 		return err
 	}
 
@@ -361,25 +391,21 @@ func authenticateDeviceFlow() error {
 		if !slices.Contains(config.AllowedUsers, pamEnv.User) {
 			logWarn("User %s is not in the allowed users list", pamEnv.User)
 			fmt.Fprintln(os.Stderr, "Authentication failed - user not allowed")
-			forceRemoveAuthLock() // Force remove on authentication failure
 			return fmt.Errorf("user not allowed")
 		}
 	}
 
 	// Ensure user exists locally
 	if err := ensureLocalUser(); err != nil {
-		forceRemoveAuthLock() // Force remove on authentication failure
 		return err
 	}
 
 	// Setup sudo privileges if user is an administrator in current system
-	if err := setupSudoPrivileges(userInfo); err != nil {
+	if err := setupSudoPrivilegesFromClaims(extractedClaims); err != nil {
 		logWarn("Failed to setup sudo privileges: %v", err)
 		// Don't fail authentication for sudo setup issues
 	}
-
 	// Authentication successful - force remove lock file (cleanup regardless of PID)
-	forceRemoveAuthLock()
 	return nil
 }
 
@@ -387,7 +413,7 @@ func requestDeviceAuthorization(deviceAuthURL string) (*DeviceAuthResponse, erro
 	logDebug("POST %s", deviceAuthURL)
 
 	data := url.Values{}
-	data.Set("client_id", config.OIDCProvider.OIDCClientID)
+	data.Set("client_id", config.OIDCProvider.ClientID)
 	data.Set("scope", "openid")
 
 	resp, err := httpClient.PostForm(deviceAuthURL, data)
@@ -456,182 +482,6 @@ Waiting for authentication... (timeout: %ds)
 	logDebug("Device code displayed - Code: %s, URI: %s", authLock.UserCode, authLock.VerificationURI)
 }
 
-// pollForTokenFromLock polls for token using auth lock data
-func pollForTokenFromLock(tokenURL string, authLock *AuthLock) (string, error) {
-	pollInterval := config.PollInterval
-	if pollInterval == 0 {
-		pollInterval = 5 // Default fallback
-	}
-
-	// Calculate remaining timeout from lock expiration
-	expiresAt, err := time.Parse(time.RFC3339, authLock.ExpiresAt)
-	if err != nil {
-		return "", fmt.Errorf("invalid expiration time in lock: %v", err)
-	}
-
-	remainingTime := time.Until(expiresAt)
-	if remainingTime <= 0 {
-		return "", fmt.Errorf("auth session expired")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), remainingTime)
-	defer cancel()
-
-	ticker := time.NewTicker(time.Duration(pollInterval) * time.Second)
-	defer ticker.Stop()
-
-	// Additional ticker for more frequent connection checks (every 1 second)
-	connectionTicker := time.NewTicker(1 * time.Second)
-	defer connectionTicker.Stop()
-
-	logDebug("Starting token polling from lock with PPID: %d", os.Getppid())
-
-	for {
-		select {
-		case <-ctx.Done():
-			logError("Authentication timeout - no token received")
-			fmt.Fprintln(os.Stderr, "Authentication timeout")
-			return "", fmt.Errorf("authentication timeout")
-		case <-connectionTicker.C:
-			// Frequent check for ID changes (cancelled by new login attempt)
-			if err := checkPollingID(authLock.PollingID); err != nil {
-				logInfo("Polling session cancelled: %v", err)
-				return "", err
-			}
-		case <-ticker.C:
-			// Check if polling ID still matches before polling
-			if err := checkPollingID(authLock.PollingID); err != nil {
-				logInfo("Polling session cancelled: %v", err)
-				return "", err
-			}
-
-			logDebug("Polling for token")
-
-			data := url.Values{}
-			data.Set("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
-			data.Set("device_code", authLock.DeviceCode)
-			data.Set("client_id", config.OIDCProvider.OIDCClientID)
-
-			resp, err := httpClient.PostForm(tokenURL, data)
-			if err != nil {
-				logDebug("Token request failed: %v", err)
-				continue
-			}
-
-			body, err := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			if err != nil {
-				logDebug("Failed to read token response: %v", err)
-				continue
-			}
-
-			var tokenResp TokenResponse
-			if err := json.Unmarshal(body, &tokenResp); err != nil {
-				logDebug("Failed to parse token response: %v", err)
-				continue
-			}
-
-			// Handle different error conditions
-			switch tokenResp.Error {
-			case "authorization_pending":
-				continue
-			case "slow_down":
-				pollInterval += 2
-				ticker.Reset(time.Duration(pollInterval) * time.Second)
-				continue
-			case "expired_token":
-				logWarn("Device code expired")
-				fmt.Fprintln(os.Stderr, "Authentication timeout - device code expired")
-				return "", fmt.Errorf("device code expired")
-			case "access_denied":
-				logWarn("Access denied by user")
-				fmt.Fprintln(os.Stderr, "Authentication denied")
-				return "", fmt.Errorf("access denied")
-			case "":
-				// No error, check for access token
-				if tokenResp.AccessToken != "" {
-					logInfo("Access token received successfully")
-					logDebug("Access token: %s", tokenResp.AccessToken)
-					return tokenResp.AccessToken, nil
-				}
-			default:
-				logError("Token request failed with error: %s - %s", tokenResp.Error, tokenResp.ErrorDesc)
-				return "", fmt.Errorf("token request failed: %s", tokenResp.Error)
-			}
-		}
-	}
-}
-
-func getUserInfo(userinfoURL, accessToken string) (*UserInfoResponse, error) {
-	req, err := http.NewRequest("GET", userinfoURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		logError("Userinfo request failed: %v", err)
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	logDebug("Userinfo response: %s", string(body))
-
-	if resp.StatusCode != http.StatusOK {
-		logError("Userinfo request failed with status %d: %s", resp.StatusCode, string(body))
-		return nil, fmt.Errorf("userinfo request failed with status %d", resp.StatusCode)
-	}
-
-	var userInfo UserInfoResponse
-	if err := json.Unmarshal(body, &userInfo); err != nil {
-		logError("Failed to parse userinfo response: %v", err)
-		return nil, err
-	}
-
-	return &userInfo, nil
-}
-
-func checkGroupMembership(userInfo *UserInfoResponse) error {
-	if len(config.RequiredGroups) == 0 {
-		return nil
-	}
-
-	hasRequiredGroup := false
-	for _, requiredGroup := range config.RequiredGroups {
-		for _, userGroup := range userInfo.Groups {
-			if userGroup == requiredGroup {
-				hasRequiredGroup = true
-				break
-			}
-		}
-		if hasRequiredGroup {
-			break
-		}
-	}
-
-	if !hasRequiredGroup {
-		logWarn("User %s does not have required group membership", pamEnv.User)
-
-		banner := `
-Access denied!
-
-You do not have permission to access this system.
-Contact your administrator for access.
-
-`
-		fmt.Fprintln(os.Stderr, banner)
-		return fmt.Errorf("insufficient group membership")
-	}
-
-	return nil
-}
-
 func ensureLocalUser() error {
 	// Check if user exists
 	if _, err := user.Lookup(pamEnv.User); err == nil {
@@ -657,75 +507,17 @@ func ensureLocalUser() error {
 	}
 
 	logInfo("Successfully created user %s", pamEnv.User)
-	return nil
-}
 
-// setupSudoPrivileges manages sudo privileges in a shared sudoers file
-func setupSudoPrivileges(userInfo *UserInfoResponse) error {
-	if config.SudoGroupName == "" {
-		logDebug("No administrator group configured, skipping sudo privileges setup")
-		return nil
-	}
-
-	// Check if user is in the administrator group
-	canSudo := slices.Contains(userInfo.Groups, config.SudoGroupName)
-
-	inSudoGroup, checkSudoErr := isUserInSudoGroup(pamEnv.User)
-	if checkSudoErr != nil {
-		logWarn("Failed to check if user %s is in sudo group: %v", pamEnv.User, checkSudoErr)
-		// No reason to fail authentication here
-	}
-
-	if canSudo {
-
-		if inSudoGroup {
-			logDebug("User %s is already in sudo group, no action needed", pamEnv.User)
-			return nil
-		}
-
-		logInfo("User %s is in administrator group %s, adding sudo privileges", pamEnv.User, config.SudoGroupName)
-
-		// Add user to sudo group
-		args := config.SystemHooks.AddUserToSudoGroup.FormatUserArg(pamEnv.User)
-		cmd := exec.Command(config.SystemHooks.AddUserToSudoGroup.ScriptPath, args...)
+	// Run post-user-creation hook if configured
+	if config.SystemHooks.PostUserCreation.ScriptPath != "" {
+		logDebug("Running post-user-creation hook for user %s", pamEnv.User)
+		args := config.SystemHooks.PostUserCreation.FormatUserArg(pamEnv.User)
+		cmd := exec.Command(config.SystemHooks.PostUserCreation.ScriptPath, args...)
 		if err := cmd.Run(); err != nil {
-			logError("Failed to add user %s to sudo group: %v", pamEnv.User, err)
-			// Don't fail authentication if sudo group addition fails
+			logWarn("Post-user-creation hook failed for user %s: %v", pamEnv.User, err)
+			// Don't fail authentication - user creation succeeded, this is just system integration
 		} else {
-			logInfo("Added user %s to sudo group", pamEnv.User)
-		}
-
-		// Add user to sudoers file
-		if err := addUserToSudoersFile(config.SudoersFile, pamEnv.User); err != nil {
-			logError("Failed to add user %s to sudoers file: %v", pamEnv.User, err)
-		} else {
-			logInfo("Added user %s to sudoers file %s", pamEnv.User, config.SudoersFile)
-		}
-	} else {
-
-		// Return early unless for some reason we couldn't check sudo group membership earlier
-		if !inSudoGroup && checkSudoErr == nil {
-			logDebug("User %s is not in sudo group, no action needed", pamEnv.User)
-			return nil
-		}
-
-		logDebug("User %s is not in administrator group %s, removing sudo privileges", pamEnv.User, config.SudoGroupName)
-
-		// Remove user from sudo group
-		args := config.SystemHooks.RemoveUserFromSudoGroup.FormatUserArg(pamEnv.User)
-		cmd := exec.Command(config.SystemHooks.RemoveUserFromSudoGroup.ScriptPath, args...)
-		if err := cmd.Run(); err != nil {
-			logDebug("Failed to remove user %s from sudo group (may not be in group): %v", pamEnv.User, err)
-			// This is expected if user was never in sudo group
-		} else {
-			logInfo("Removed user %s from sudo group", pamEnv.User)
-		}
-
-		// Remove user from sudoers file
-		if err := removeUserFromSudoersFile(config.SudoersFile, pamEnv.User); err != nil {
-			logError("Failed to remove user %s from sudoers file: %v", pamEnv.User, err)
-		} else {
-			logInfo("Removed user %s from sudoers file %s", pamEnv.User, config.SudoersFile)
+			logDebug("Post-user-creation hook completed successfully for user %s", pamEnv.User)
 		}
 	}
 
@@ -739,15 +531,8 @@ func isUserInSudoGroup(username string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to get groups for user %s: %v", username, err)
 	}
-
 	groups := strings.Fields(string(output))
-	for _, group := range groups {
-		if group == "sudo" {
-			return true, nil
-		}
-	}
-
-	return false, nil
+	return slices.Contains(groups, config.SudoGroupName), nil
 }
 
 // addUserToSudoersFile adds a user entry to the shared sudoers file
@@ -845,7 +630,6 @@ func removeUserFromSudoersFile(sudoersFile, username string) error {
 		return os.Remove(sudoersFile)
 	}
 
-	// Write back to file
 	newContent := strings.Join(newLines, "\n")
 	if !strings.HasSuffix(newContent, "\n") {
 		newContent += "\n"
