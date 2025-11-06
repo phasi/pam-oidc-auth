@@ -34,12 +34,12 @@ They should be placed before the regular auth is included (e.g. on Ubuntu 24.04 
 
 ```bash
 # /etc/pam.d/sshd
-auth       sufficient   pam_exec.so quiet expose_authtok stdout /usr/local/bin/pam-oidc
+auth       sufficient   pam_exec.so quiet expose_authtok stdout /usr/local/bin/pam_oidc_auth
 ```
 
 ```bash
 # /etc/pam.d/login
-auth       sufficient   pam_exec.so expose_authtok stdout /usr/local/bin/pam-oidc
+auth       sufficient   pam_exec.so expose_authtok stdout /usr/local/bin/pam_oidc_auth
 ```
 
 3. Create a config file for SSH Daemon
