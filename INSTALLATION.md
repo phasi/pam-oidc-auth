@@ -2,6 +2,8 @@
 
 This is the installation instructions file included in the packaged version of pam-oidc-auth.
 
+After installation see [configuration options](CONFIGURATION.md)
+
 ## Installation options
 
 ### Option 1: Using script
@@ -65,3 +67,14 @@ Modify the banner as needed before running the command.
 cat ssh_banner.txt | sudo tee /etc/ssh/ssh_banner.txt
 echo "Banner /etc/ssh/ssh_banner.txt" >> /etc/ssh/sshd_config.d/51-pam-oidc-auth.conf
 ```
+
+5. Create configuration file at default location
+
+```bash
+# running this without defining path will generate the config file at /etc/pam-oidc-auth.conf.json
+sudo pam_oidc_auth create-config
+```
+
+## After installation
+
+See how to [configure PAM OIDC Auth](CONFIGURATION.md)
