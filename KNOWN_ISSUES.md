@@ -26,3 +26,5 @@ Add the `post_user_creation` hook to your configuration (e.g. below `add_user` h
   }
 }
 ```
+
+Of course if you are happy with the way things are you can totally just skip post_user_creation and continue your day. Just don't be surprised if you have to do 2 logins when logging on a VM for the first time! :) 
