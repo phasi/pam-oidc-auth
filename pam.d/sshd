@@ -2,7 +2,7 @@
 
 # Keycloak SSO Authentication - sufficient means "if this works, we're done"
 # quiet flag suppresses error messages from PAM
-auth       sufficient   pam_exec.so quiet expose_authtok stdout /usr/local/bin/pam_oidc_auth
+auth       sufficient   pam_exec.so quiet expose_authtok stdout /usr/local/bin/pam_oidc_auth -config /etc/pam-oidc-auth.conf.json
 
 # Standard Un*x authentication (fallback) - but should rarely be reached
 @include common-auth

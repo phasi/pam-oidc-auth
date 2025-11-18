@@ -55,7 +55,7 @@ session       required   pam_env.so readenv=1 envfile=/etc/default/locale
 
 # Standard Un*x authentication.
 # Keycloak SSO Authentication - if this succeeds, skip password auth
-auth       sufficient   pam_exec.so expose_authtok stdout /usr/local/bin/pam_oidc_auth
+auth       sufficient   pam_exec.so expose_authtok stdout /usr/local/bin/pam_oidc_auth -config /etc/pam-oidc-auth.conf.json
 
 @include common-auth
 
